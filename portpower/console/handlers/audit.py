@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from portpower.audit.chain import NothingToSealError
 from portpower.audit.filter import by_event, events, tail
 from portpower.audit.summary import summarize
 from portpower.console.http import BadRequest, Request, Response
+from portpower.console.validation import require_text
 
 DEFAULT_TAIL = 10
 
@@ -49,4 +51,39 @@ def audit_tail(runtime, request: Request) -> Response:
     return Response.json(
         200,
         {"limit": limit, "count": len(entries), "entries": [e.as_dict() for e in entries]},
+    )
+
+
+def audit_backfill(runtime, request: Request) -> Response:
+    payload = request.json_object()
+    event = require_text(payload, "event")
+    detail = require_text(payload, "detail")
+    occurred_at = require_text(payload, "occurred_at")
+    reason = require_text(payload, "reason")
+    entry = runtime.ledger.backfill(
+        event,
+        detail,
+        occurred_at=occurred_at,
+        reason=reason,
+    )
+    return Response.json(201, entry.as_dict())
+
+
+def audit_verify(runtime, request: Request) -> Response:
+    return Response.json(200, runtime.ledger.verify().as_dict())
+
+
+def audit_seal(runtime, request: Request) -> Response:
+    try:
+        info = runtime.ledger.seal()
+    except NothingToSealError:
+        return Response.json(409, {"error": "active segment is empty, nothing to seal"})
+    return Response.json(201, info.as_dict())
+
+
+def audit_volumes(runtime, request: Request) -> Response:
+    volumes = runtime.ledger.volumes()
+    return Response.json(
+        200,
+        {"count": len(volumes), "volumes": [info.as_dict() for info in volumes]},
     )

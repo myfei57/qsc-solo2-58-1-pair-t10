@@ -44,6 +44,12 @@ class RecordStore:
         self._data: dict[str, bytes] = {}
         self._lock = threading.RLock()
 
+    @property
+    def directory(self) -> Path:
+        """Directory the store persists to."""
+
+        return self._dir
+
     def load(self) -> None:
         """Read every ``*.json`` file already present in the directory."""
 

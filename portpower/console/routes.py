@@ -60,6 +60,10 @@ def build_router(runtime) -> Router:
     router.get("/audit/latest", bind(audit.audit_latest, runtime))
     router.get("/audit/summary", bind(audit.audit_summary, runtime))
     router.get("/audit/tail", bind(audit.audit_tail, runtime))
+    router.post("/audit/backfill", bind(audit.audit_backfill, runtime))
+    router.get("/audit/verify", bind(audit.audit_verify, runtime))
+    router.post("/audit/seal", bind(audit.audit_seal, runtime))
+    router.get("/audit/volumes", bind(audit.audit_volumes, runtime))
 
     router.get("/quota", bind(quota.quota_list, runtime))
     router.post("/quota", bind(quota.quota_set, runtime))
