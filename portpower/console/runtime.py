@@ -77,11 +77,14 @@ def build_runtime(harbor: Harbor, store: RecordStore) -> Runtime:
     cable_id, cable_rating = SHORE_CABLE
     cables.add(cable_id, cable_rating)
 
+    ledger = Ledger(store)
+    ledger.migrate_legacy()
+
     return Runtime(
         harbor=harbor,
         catalog=catalog,
         store=store,
-        ledger=Ledger(store),
+        ledger=ledger,
         quotas=QuotaManager(store),
         profiles=ProfileRegistry(store),
         fleet=Fleet(),

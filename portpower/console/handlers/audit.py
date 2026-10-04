@@ -1,10 +1,12 @@
-"""Audit ledger query endpoints."""
+"""Audit ledger query, backfill, verification and sealing endpoints."""
 
 from __future__ import annotations
 
 from portpower.audit.filter import by_event, events, tail
+from portpower.audit.ledger import LedgerCorrupt
 from portpower.audit.summary import summarize
 from portpower.console.http import BadRequest, Request, Response
+from portpower.console.validation import optional_text, require_text
 
 DEFAULT_TAIL = 10
 
@@ -49,4 +51,42 @@ def audit_tail(runtime, request: Request) -> Response:
     return Response.json(
         200,
         {"limit": limit, "count": len(entries), "entries": [e.as_dict() for e in entries]},
+    )
+
+
+def audit_backfill(runtime, request: Request) -> Response:
+    payload = request.json_object()
+    event = require_text(payload, "event")
+    detail = optional_text(payload, "detail", "")
+    original_at = require_text(payload, "original_at")
+    reason = require_text(payload, "reason")
+    try:
+        entry = runtime.ledger.append_backfill(
+            event, detail, original_at=original_at, reason=reason
+        )
+    except ValueError as exc:
+        raise BadRequest(str(exc)) from exc
+    return Response.json(201, entry.as_dict())
+
+
+def audit_verify(runtime, request: Request) -> Response:
+    report = runtime.ledger.verify()
+    return Response.json(200 if report.ok else 409, report.as_dict())
+
+
+def audit_seal(runtime, request: Request) -> Response:
+    try:
+        manifest = runtime.ledger.seal()
+    except LedgerCorrupt as exc:
+        return Response.json(409, {"error": str(exc)})
+    if manifest is None:
+        return Response.json(409, {"error": "active volume is empty"})
+    return Response.json(201, manifest.as_dict())
+
+
+def audit_volumes(runtime, request: Request) -> Response:
+    manifests = runtime.ledger.volumes()
+    return Response.json(
+        200,
+        {"count": len(manifests), "volumes": [item.as_dict() for item in manifests]},
     )
